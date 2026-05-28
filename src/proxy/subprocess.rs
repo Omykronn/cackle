@@ -23,6 +23,7 @@ use crate::outcome::Outcome;
 use crate::proxy::rpc::RpcClient;
 use crate::sandbox::RustcSandboxInputs;
 use crate::unsafe_checker;
+use crate::unsafe_checker::filter_not_registered;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
@@ -278,9 +279,7 @@ impl RustcRunner {
             if response != Outcome::Continue {
                 return Ok(RustcRunStatus::GiveUp);
             }
-            if !unsafe_permitted {
-                unsafe_locations.extend(find_unsafe_in_sources(&source_paths)?);
-            }
+            unsafe_locations.extend(find_unsafe_in_sources(&source_paths)?);
             if !extern_permitted {
                 extern_locations.extend(find_extern_in_sources(&source_paths)?);
             }
@@ -289,6 +288,8 @@ impl RustcRunner {
             extern_locations.extend(get_disallowed_extern_locations(&output)?);
         }
         if !unsafe_locations.is_empty() {
+            unsafe_locations = filter_not_registered(unsafe_locations);   
+
             unsafe_locations.sort();
             unsafe_locations.dedup();
             let response = rpc_client.crate_uses_unsafe(&self.crate_sel, unsafe_locations)?;

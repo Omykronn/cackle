@@ -342,7 +342,12 @@ impl Checker {
     }
 
     pub(crate) fn crate_uses_unsafe(&self, usage: &UnsafeUsage) -> ProblemList {
-        Problem::DisallowedUnsafe(usage.clone()).into()
+        if usage.locations.is_empty() {
+            ProblemList::default()
+        }
+        else {
+            Problem::DisallowedUnsafe(usage.clone()).into()
+        }
     }
 
     pub(crate) fn crate_uses_extern(&self, usage: &ExternUsage) -> ProblemList {

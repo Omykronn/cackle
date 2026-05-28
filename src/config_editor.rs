@@ -1135,6 +1135,27 @@ impl Edit for AllowExtern {
     }
 }
 
+struct RegisterUnsafe {
+    perm_sel: PermSel
+}
+
+impl Edit for RegisterUnsafe {
+    fn title(&self) -> String {
+        "Register this unsafe code".to_string()
+    }
+
+    fn help(&self) -> Cow<'static, str> {
+        "Allow this unsafe block by registering it."
+            .into()
+    }
+
+    fn apply(&self, editor: &mut ConfigEditor, opts: &EditOpts) -> Result<()> {
+        let table = editor.pkg_table(&self.perm_sel)?;
+        set_table_value(table, "allow_unsafe", toml_edit::value(true), opts);
+        Ok(())
+    }
+}
+
 struct SandboxAllowNetwork {
     perm_sel: PermSel,
 }
