@@ -958,12 +958,12 @@ fn usages_for_problem(
             }
         }
         Some((_, Problem::UnregisteredUnsafe(unsafe_usage))) => {
-            for location in &unsafe_usage.locations {
+            for block in &unsafe_usage.blocks {
                 let pkg_dir = crate_index
                     .pkg_dir(unsafe_usage.crate_sel.pkg_id())
                     .map(|pkg_dir| pkg_dir.to_owned());
                 usages_out.push(Box::new(UnsafeLocation {
-                    source_location: location.clone(),
+                    source_location: block.location.clone(),
                     pkg_dir,
                 }));
             }

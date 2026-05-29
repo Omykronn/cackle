@@ -13,6 +13,7 @@ use crate::crate_index::PackageId;
 use crate::names::SymbolOrDebugName;
 use crate::proxy::rpc::BinExecutionOutput;
 use crate::proxy::rpc::ExternUsage;
+use crate::proxy::rpc::UnregisteredUnsafeUsage;
 use crate::proxy::rpc::UnsafeUsage;
 use crate::symbol::Symbol;
 use std::collections::BTreeMap;
@@ -34,7 +35,7 @@ pub(crate) enum Problem {
     UsesBuildScript(PackageId),
     DisallowedUnsafe(UnsafeUsage),
     DisallowedExtern(ExternUsage),
-    UnregisteredUnsafe(UnsafeUsage),
+    UnregisteredUnsafe(UnregisteredUnsafeUsage),
     IsProcMacro(PackageId),
     DisallowedApiUsage(ApiUsages),
     OffTreeApiUsage(OffTreeApiUsage),
@@ -272,7 +273,8 @@ impl Display for Problem {
                 write!(f, "`{}` uses unregistered unsafe blocks", usage.crate_sel)?;
                 if f.alternate() {
                     writeln!(f)?;
-                    for location in &usage.locations {
+                    for unsafe_block in &usage.blocks {
+                        let location = unsafe_block.location.clone();
                         writeln!(f, "{location}")?;
                     }
                 }

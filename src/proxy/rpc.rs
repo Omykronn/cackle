@@ -5,6 +5,7 @@ use crate::crate_index::CrateSel;
 use crate::link_info::LinkInfo;
 use crate::location::SourceLocation;
 use crate::outcome::Outcome;
+use crate::unsafe_checker::UnsafeBlock;
 use anyhow::Context;
 use anyhow::Result;
 use serde::Deserialize;
@@ -58,12 +59,12 @@ impl RpcClient {
     pub(crate) fn unregistered_unsafe_blocks(
         &self,
         crate_sel: &CrateSel,
-        locations: Vec<SourceLocation>,
+        blocks: Vec<UnsafeBlock>,
     ) -> Result<Outcome> {
         let mut ipc = self.connect()?;
-        let request = Request::UnregisteredUnsafeBlocks(UnsafeUsage {
+        let request = Request::UnregisteredUnsafeBlocks(UnregisteredUnsafeUsage {
             crate_sel: crate_sel.clone(),
-            locations,
+            blocks,
         });
         write_to_stream(&request, &mut ipc)?;
         read_from_stream(&mut ipc)
@@ -113,7 +114,7 @@ pub(crate) enum Request {
     CrateUsesUnsafe(UnsafeUsage),
     /// Advises that the specified crate failed to compile because it uses extern.
     CrateUsesExtern(ExternUsage),
-    UnregisteredUnsafeBlocks(UnsafeUsage),
+    UnregisteredUnsafeBlocks(UnregisteredUnsafeUsage),
     LinkerInvoked(LinkInfo),
     BinExecutionComplete(BinExecutionOutput),
     RustcStarted(CrateSel),
@@ -150,6 +151,12 @@ pub(crate) struct UnsafeUsage {
 pub(crate) struct ExternUsage {
     pub(crate) crate_sel: CrateSel,
     pub(crate) locations: Vec<SourceLocation>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Hash)]
+pub(crate) struct UnregisteredUnsafeUsage {
+    pub(crate) crate_sel: CrateSel,
+    pub(crate) blocks: Vec<UnsafeBlock>,
 }
 
 /// Writes `value` to `stream`. The format used is the length followed by `value` serialised as

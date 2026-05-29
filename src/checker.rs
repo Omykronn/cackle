@@ -21,6 +21,7 @@ use crate::problem::UnusedAllowApi;
 use crate::proxy::cargo::profile_name;
 use crate::proxy::rpc;
 use crate::proxy::rpc::ExternUsage;
+use crate::proxy::rpc::UnregisteredUnsafeUsage;
 use crate::proxy::rpc::UnsafeUsage;
 use crate::proxy::subprocess::SubprocessConfig;
 use crate::symbol_graph::NameSource;
@@ -346,7 +347,7 @@ impl Checker {
         Problem::DisallowedUnsafe(usage.clone()).into()
     }
 
-    pub(crate) fn unregistered_unsafe_blocks(&self, usage: &UnsafeUsage) -> ProblemList {
+    pub(crate) fn unregistered_unsafe_blocks(&self, usage: &UnregisteredUnsafeUsage) -> ProblemList {
         Problem::UnregisteredUnsafe(usage.clone()).into()
     }
 

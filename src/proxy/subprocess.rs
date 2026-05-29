@@ -303,9 +303,9 @@ impl RustcRunner {
         // If here, then either unsafe is permitter of unsafe_location is empty
         
         // Keep only the unregistered unsafe blocks (if unsafe_locations was empty, still empty after)
-        unsafe_locations = filter_not_registered(unsafe_locations);
-        if !unsafe_locations.is_empty() {
-            let response = rpc_client.unregistered_unsafe_blocks(&self.crate_sel, unsafe_locations)?;
+        let unsafe_blocks = filter_not_registered(unsafe_locations);
+        if !unsafe_blocks.is_empty() {
+            let response = rpc_client.unregistered_unsafe_blocks(&self.crate_sel, unsafe_blocks)?;
             
             if response == Outcome::Continue {
                 return Ok(RustcRunStatus::Retry);

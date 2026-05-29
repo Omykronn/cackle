@@ -13,9 +13,9 @@ use std::fs::read_to_string;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct UnsafeBlock {
-    pub filename: String,
+    pub location: SourceLocation,
     pub signature: String,
     pub body: String,
 }
@@ -146,26 +146,21 @@ fn add_location(
     locations.push(SourceLocation::new(path, line, Some(column)));
 }
 
-pub(crate) fn filter_not_registered(unfiltered: Vec<SourceLocation>) -> Vec<SourceLocation>{
+pub(crate) fn filter_not_registered(unfiltered: Vec<SourceLocation>) -> Vec<UnsafeBlock>{
     let filename = "unsafe-blocks.json";
     let saved_unsafe_blocks = load_saved_unsafe_block(filename);
 
     let mut filtered = Vec::new();
 
     for location in unfiltered {
-        let option = extract_specific_unsafe_block(
-            location.filename().to_str().unwrap(), 
-            location.line(), 
-            location.column().unwrap()
-        );
+        let option = extract_specific_unsafe_block(location);
 
         if let Some(block) = option {
+            let cloned_block = block.clone();
+
             if !is_registered(block, &saved_unsafe_blocks) {
-                filtered.push(location);
+                filtered.push(cloned_block);
             }
-        }
-        else {
-            filtered.push(location);
         }
     }
 
@@ -173,8 +168,7 @@ pub(crate) fn filter_not_registered(unfiltered: Vec<SourceLocation>) -> Vec<Sour
 }
 
 fn load_saved_unsafe_block(source_filename: &str) -> Vec<UnsafeBlock> {
-    let saved_json = read_to_string(source_filename)
-        .expect("Error when reading saved json");
+    let saved_json = read_to_string(source_filename).unwrap_or("[]".to_string());
 
     let saved_blocks: Vec<UnsafeBlock> = from_str(&saved_json).expect("Error when deserializing");
 
@@ -183,7 +177,7 @@ fn load_saved_unsafe_block(source_filename: &str) -> Vec<UnsafeBlock> {
 
 fn is_registered(sample: UnsafeBlock, registered_blocks: &Vec<UnsafeBlock>) -> bool{
     for block in registered_blocks {
-        if sample.filename == block.filename && sample.signature == block.signature && sample.body == block.body {
+        if sample.location.filename() == block.location.filename() && sample.signature == block.signature && sample.body == block.body {
             return true
         }
     }
@@ -191,8 +185,8 @@ fn is_registered(sample: UnsafeBlock, registered_blocks: &Vec<UnsafeBlock>) -> b
     false
 }
 
-fn extract_specific_unsafe_block(filename: &str, ref_line: u32, ref_column: u32) -> Option<UnsafeBlock> {
-    let source = read_to_string(filename).unwrap();
+fn extract_specific_unsafe_block(location: SourceLocation) -> Option<UnsafeBlock> {
+    let source = read_to_string(location.filename()).unwrap();
 
     let mut offset = 0;
     let mut is_unsafe_block = false;
@@ -218,7 +212,11 @@ fn extract_specific_unsafe_block(filename: &str, ref_line: u32, ref_column: u32)
                 counter -= 1;
 
                 if counter <= 0 {
-                    return Some(UnsafeBlock { filename: filename.to_string(), signature: source[begin..middle].to_string(), body: source[middle..new_offset].to_string() });
+                    return Some(UnsafeBlock { 
+                        location,
+                        signature: source[begin..middle].to_string(), 
+                        body: source[middle..new_offset].to_string() 
+                    });
                 }
             }
         }
@@ -231,7 +229,7 @@ fn extract_specific_unsafe_block(filename: &str, ref_line: u32, ref_column: u32)
                 .unwrap_or(1);
             let line = 1.max(source[..new_offset].lines().count() as u32);
 
-            if line == ref_line && column == ref_column {
+            if line == location.line() && column == location.column().unwrap_or(0) {
                 is_unsafe_block = true;
                 counter = -1;
 
