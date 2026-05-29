@@ -240,6 +240,7 @@ impl Checker {
         match request {
             rpc::Request::CrateUsesUnsafe(usage) => Ok(self.crate_uses_unsafe(usage)),
             rpc::Request::CrateUsesExtern(usage) => Ok(self.crate_uses_extern(usage)),
+            rpc::Request::UnregisteredUnsafeBlocks(usage ) => Ok(self.unregistered_unsafe_blocks(usage)),
             rpc::Request::LinkerInvoked(link_info) => {
                 self.outstanding_linker_invocations.push(link_info.clone());
                 Ok(ProblemList::default())
@@ -342,12 +343,11 @@ impl Checker {
     }
 
     pub(crate) fn crate_uses_unsafe(&self, usage: &UnsafeUsage) -> ProblemList {
-        if usage.locations.is_empty() {
-            ProblemList::default()
-        }
-        else {
-            Problem::DisallowedUnsafe(usage.clone()).into()
-        }
+        Problem::DisallowedUnsafe(usage.clone()).into()
+    }
+
+    pub(crate) fn unregistered_unsafe_blocks(&self, usage: &UnsafeUsage) -> ProblemList {
+        Problem::UnregisteredUnsafe(usage.clone()).into()
     }
 
     pub(crate) fn crate_uses_extern(&self, usage: &ExternUsage) -> ProblemList {

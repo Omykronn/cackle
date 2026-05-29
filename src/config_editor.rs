@@ -111,6 +111,11 @@ pub(crate) fn fixes_for_problem(problem: &Problem, config: &Config) -> Vec<Box<d
         Problem::DisallowedUnsafe(failure) => edits.push(Box::new(AllowUnsafe {
             perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
         })),
+        Problem::UnregisteredUnsafe(failure) => {
+            edits.push(Box::new(RegisterUnsafe {
+                perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
+            }));
+        }
         Problem::DisallowedExtern(failure) => edits.push(Box::new(AllowExtern {
             perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
         })),
@@ -1149,9 +1154,9 @@ impl Edit for RegisterUnsafe {
             .into()
     }
 
-    fn apply(&self, editor: &mut ConfigEditor, opts: &EditOpts) -> Result<()> {
-        let table = editor.pkg_table(&self.perm_sel)?;
-        set_table_value(table, "allow_unsafe", toml_edit::value(true), opts);
+    fn apply(&self, _editor: &mut ConfigEditor, _opts: &EditOpts) -> Result<()> {
+        // TODO : Write in unsafe-blocks.json
+
         Ok(())
     }
 }

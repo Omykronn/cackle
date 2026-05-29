@@ -287,12 +287,26 @@ impl RustcRunner {
             unsafe_locations.extend(get_disallowed_unsafe_locations(&output)?);
             extern_locations.extend(get_disallowed_extern_locations(&output)?);
         }
-        if !unsafe_locations.is_empty() {
-            unsafe_locations = filter_not_registered(unsafe_locations);   
-
+        if !unsafe_permitted && !unsafe_locations.is_empty() {
             unsafe_locations.sort();
             unsafe_locations.dedup();
+
             let response = rpc_client.crate_uses_unsafe(&self.crate_sel, unsafe_locations)?;
+            
+            if response == Outcome::Continue {
+                return Ok(RustcRunStatus::Retry);
+            } else {
+                return Ok(RustcRunStatus::GiveUp);
+            }
+        }
+
+        // If here, then either unsafe is permitter of unsafe_location is empty
+        
+        // Keep only the unregistered unsafe blocks (if unsafe_locations was empty, still empty after)
+        unsafe_locations = filter_not_registered(unsafe_locations);
+        if !unsafe_locations.is_empty() {
+            let response = rpc_client.unregistered_unsafe_blocks(&self.crate_sel, unsafe_locations)?;
+            
             if response == Outcome::Continue {
                 return Ok(RustcRunStatus::Retry);
             } else {

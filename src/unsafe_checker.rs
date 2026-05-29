@@ -7,9 +7,6 @@ use anyhow::Context;
 use anyhow::Result;
 use ra_ap_rustc_lexer::Token;
 use ra_ap_rustc_lexer::TokenKind;
-use cargo_metadata::Source;
-use std::fs::File;
-use std::io::Write;
 use std::path::Path;
 
 use std::fs::read_to_string;

@@ -34,6 +34,7 @@ pub(crate) enum Problem {
     UsesBuildScript(PackageId),
     DisallowedUnsafe(UnsafeUsage),
     DisallowedExtern(ExternUsage),
+    UnregisteredUnsafe(UnsafeUsage),
     IsProcMacro(PackageId),
     DisallowedApiUsage(ApiUsages),
     OffTreeApiUsage(OffTreeApiUsage),
@@ -218,6 +219,7 @@ impl Problem {
             Problem::UsesBuildScript(pkg_id) => Some(pkg_id),
             Problem::DisallowedUnsafe(d) => Some(d.crate_sel.pkg_id()),
             Problem::DisallowedExtern(d) => Some(d.crate_sel.pkg_id()),
+            Problem::UnregisteredUnsafe(d) => Some(d.crate_sel.pkg_id()),
             Problem::IsProcMacro(pkg_id) => Some(pkg_id),
             Problem::DisallowedApiUsage(d) => Some(&d.pkg_id),
             Problem::OffTreeApiUsage(d) => Some(&d.usages.pkg_id),
@@ -259,6 +261,15 @@ impl Display for Problem {
             }
             Problem::DisallowedExtern(usage) => {
                 write!(f, "`{}` uses extern", usage.crate_sel)?;
+                if f.alternate() {
+                    writeln!(f)?;
+                    for location in &usage.locations {
+                        writeln!(f, "{location}")?;
+                    }
+                }
+            }
+            Problem::UnregisteredUnsafe(usage) => {
+                write!(f, "`{}` uses unregistered unsafe blocks", usage.crate_sel)?;
                 if f.alternate() {
                     writeln!(f)?;
                     for location in &usage.locations {

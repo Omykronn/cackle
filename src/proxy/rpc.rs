@@ -55,6 +55,20 @@ impl RpcClient {
         read_from_stream(&mut ipc)
     }
 
+    pub(crate) fn unregistered_unsafe_blocks(
+        &self,
+        crate_sel: &CrateSel,
+        locations: Vec<SourceLocation>,
+    ) -> Result<Outcome> {
+        let mut ipc = self.connect()?;
+        let request = Request::UnregisteredUnsafeBlocks(UnsafeUsage {
+            crate_sel: crate_sel.clone(),
+            locations,
+        });
+        write_to_stream(&request, &mut ipc)?;
+        read_from_stream(&mut ipc)
+    }
+
     pub(crate) fn rustc_started(&self, crate_sel: &CrateSel) -> Result<Outcome> {
         let mut ipc = self.connect()?;
         let request = Request::RustcStarted(crate_sel.clone());
@@ -99,6 +113,7 @@ pub(crate) enum Request {
     CrateUsesUnsafe(UnsafeUsage),
     /// Advises that the specified crate failed to compile because it uses extern.
     CrateUsesExtern(ExternUsage),
+    UnregisteredUnsafeBlocks(UnsafeUsage),
     LinkerInvoked(LinkInfo),
     BinExecutionComplete(BinExecutionOutput),
     RustcStarted(CrateSel),
