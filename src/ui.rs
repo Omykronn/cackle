@@ -42,8 +42,7 @@ trait UserInterface: Send {
 
 pub(crate) fn start_ui(
     args: &Arc<Args>,
-    config_path: &Path,
-    unsafe_collection_path: &Path,
+    configs_path: (&Path, &Path),
     checker: &Arc<Mutex<Checker>>,
     problem_store: ProblemStoreRef,
     crate_index: Arc<CrateIndex>,
@@ -56,8 +55,8 @@ pub(crate) fn start_ui(
             Box::new(null_ui::NullUi::new(
                 args,
                 abort_sender,
-                config_path.to_owned(),
-                unsafe_collection_path.to_owned(),
+                configs_path.0.to_owned(),
+                configs_path.1.to_owned(),
                 checker,
             ))
         }
@@ -65,8 +64,8 @@ pub(crate) fn start_ui(
         Kind::Basic => {
             info!("Starting basic terminal UI");
             Box::new(basic_term::BasicTermUi::new(
-                config_path.to_owned(),
-                unsafe_collection_path.to_owned(),
+                configs_path.0.to_owned(),
+                configs_path.1.to_owned(),
                 checker,
             ))
         }
@@ -74,8 +73,8 @@ pub(crate) fn start_ui(
         Kind::Full => {
             info!("Starting full terminal UI");
             Box::new(full_term::FullTermUi::new(
-                config_path.to_owned(),
-                unsafe_collection_path.to_owned(),
+                configs_path.0.to_owned(),
+                configs_path.1.to_owned(),
                 checker,
                 crate_index,
                 abort_sender,

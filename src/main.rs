@@ -276,8 +276,7 @@ impl Cackle {
         let problem_store = crate::problem_store::create(event_sender.clone());
         let ui_join_handle = ui::start_ui(
             &args,
-            &config_path,
-            &unsafe_collection_path,
+            (&config_path, &unsafe_collection_path),
             &checker,
             problem_store.clone(),
             crate_index.clone(),
