@@ -38,6 +38,7 @@ mod problems_ui;
 
 pub(crate) struct FullTermUi {
     config_path: PathBuf,
+    unsafe_collection_path: PathBuf,
     abort_sender: Sender<()>,
     crate_index: Arc<CrateIndex>,
     checker: Arc<Mutex<Checker>>,
@@ -46,12 +47,14 @@ pub(crate) struct FullTermUi {
 impl FullTermUi {
     pub(crate) fn new(
         config_path: PathBuf,
+        unsafe_collection_path: PathBuf,
         checker: &Arc<Mutex<Checker>>,
         crate_index: Arc<CrateIndex>,
         abort_sender: Sender<()>,
     ) -> Result<Self> {
         Ok(Self {
             config_path,
+            unsafe_collection_path,
             abort_sender,
             crate_index,
             checker: checker.clone(),
@@ -92,6 +95,7 @@ impl super::UserInterface for FullTermUi {
             self.crate_index.clone(),
             self.checker.clone(),
             self.config_path.clone(),
+            self.unsafe_collection_path.clone()
         );
         let mut needs_redraw = true;
         let mut error = None;

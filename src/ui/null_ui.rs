@@ -24,6 +24,7 @@ pub(crate) struct NullUi {
     args: Arc<Args>,
     abort_sender: Sender<()>,
     config_path: PathBuf,
+    unsafe_collection_path: PathBuf,
     checker: Arc<Mutex<Checker>>,
 }
 
@@ -32,19 +33,21 @@ impl NullUi {
         args: &Arc<Args>,
         abort_sender: Sender<()>,
         config_path: PathBuf,
+        unsafe_collection_path: PathBuf,
         checker: &Arc<Mutex<Checker>>,
     ) -> Self {
         Self {
             args: args.clone(),
             abort_sender,
             config_path,
+            unsafe_collection_path,
             checker: checker.clone(),
         }
     }
 
     fn accept_all_single_edits(&self, pstore: &mut MutexGuard<ProblemStore>) -> Result<()> {
         let config = self.checker.lock().unwrap().config.clone();
-        let mut editor = ConfigEditor::from_file(&self.config_path)?;
+        let mut editor = ConfigEditor::from_file(&self.config_path, &self.unsafe_collection_path)?;
         let mut applied_count = 0;
 
         loop {
@@ -60,7 +63,7 @@ impl NullUi {
         }
 
         if applied_count > 0 {
-            crate::fs::write_atomic(&self.config_path, &editor.to_toml())?;
+            crate::fs::write_atomic(&self.config_path, &editor.config_to_toml())?;
             println!(
                 "{}",
                 format!("Auto-accepted {} fix(es)", applied_count).green()
@@ -166,6 +169,7 @@ mod tests {
         let tmpdir = TempDir::new(None).unwrap();
         let target_dir = tmpdir.path().join("target");
         let config_path = tmpdir.path().join("cackle.toml");
+        let unsafe_collection_path = tmpdir.path().join("unsafe-blocks.json");
         let sysroot = PathBuf::from("/usr");
 
         // Create a minimal Cargo.toml with a lib target for CrateIndex
@@ -191,7 +195,7 @@ mod tests {
         )));
 
         let (abort_sender, _abort_recv) = std::sync::mpsc::channel();
-        let mut ui = NullUi::new(&args, abort_sender, config_path, &checker);
+        let mut ui = NullUi::new(&args, abort_sender, config_path, unsafe_collection_path, &checker);
 
         let (event_send, event_recv) = std::sync::mpsc::channel();
         let mut problem_store = crate::problem_store::create(event_send.clone());

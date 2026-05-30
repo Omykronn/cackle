@@ -33,6 +33,7 @@ use std::time::SystemTime;
 
 pub(crate) struct BasicTermUi {
     config_path: PathBuf,
+    unsafe_collection_path: PathBuf,
     stdin_recv: Receiver<String>,
     config_last_modified: Option<SystemTime>,
     checker: Arc<Mutex<Checker>>,
@@ -95,10 +96,11 @@ impl super::UserInterface for BasicTermUi {
 }
 
 impl BasicTermUi {
-    pub(crate) fn new(config_path: PathBuf, checker: &Arc<Mutex<Checker>>) -> Self {
+    pub(crate) fn new(config_path: PathBuf, unsafe_collection_path: PathBuf, checker: &Arc<Mutex<Checker>>) -> Self {
         Self {
             config_last_modified: config_modification_time(&config_path),
             config_path,
+            unsafe_collection_path,
             stdin_recv: start_stdin_channel(),
             checker: checker.clone(),
         }
@@ -141,7 +143,7 @@ impl BasicTermUi {
                 }
             }
         }
-        let initial_toml = editor.to_toml();
+        let initial_toml = editor.config_to_toml();
         println!("========= Initial configuration =========");
         println!("{initial_toml}");
         println!("=========================================");
@@ -157,14 +159,14 @@ impl BasicTermUi {
         loop {
             match self.get_action(fixes.len()) {
                 Ok(Action::ApplyFix(n)) => {
-                    let mut editor = ConfigEditor::from_file(&self.config_path)?;
+                    let mut editor = ConfigEditor::from_file(&self.config_path, &self.unsafe_collection_path)?;
                     fixes[n].apply(&mut editor, &Default::default())?;
-                    editor.write(&self.config_path)?;
+                    editor.write(&self.config_path, &self.unsafe_collection_path)?;
                     self.config_last_modified = config_modification_time(&self.config_path);
                     return Ok(Outcome::Continue);
                 }
                 Ok(Action::ShowDiff(n)) => {
-                    let mut editor = ConfigEditor::from_file(&self.config_path)?;
+                    let mut editor = ConfigEditor::from_file(&self.config_path, &self.unsafe_collection_path)?;
                     let fix = &fixes[n];
                     fix.apply(&mut editor, &Default::default())?;
                     println!("Diff for {}:", fix.title());
@@ -172,7 +174,7 @@ impl BasicTermUi {
                         &std::fs::read_to_string(&self.config_path).with_context(|| {
                             format!("Failed to read `{}`", self.config_path.display())
                         })?,
-                        &editor.to_toml(),
+                        &editor.config_to_toml(),
                     );
                 }
                 Ok(Action::GiveUp) => return Ok(Outcome::GiveUp),

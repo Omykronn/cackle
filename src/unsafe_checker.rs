@@ -212,10 +212,10 @@ fn extract_specific_unsafe_block(location: SourceLocation) -> Option<UnsafeBlock
                 counter -= 1;
 
                 if counter <= 0 {
-                    return Some(UnsafeBlock { 
+                    return Some(UnsafeBlock {
                         location,
-                        signature: source[begin..middle].to_string(), 
-                        body: source[middle..new_offset].to_string() 
+                        signature: source[begin..middle].to_string(),
+                        body: source[middle..new_offset].to_string()
                     });
                 }
             }

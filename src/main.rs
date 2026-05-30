@@ -255,6 +255,8 @@ impl Cackle {
             .clone()
             .unwrap_or_else(|| root_path.join("cackle.toml"));
 
+        let unsafe_collection_path = root_path.join("unsafe-blocks.json");
+
         let crate_index = Arc::new(CrateIndex::new(&root_path)?);
         let target_dir = root_path.join(
             std::env::var("CARGO_TARGET_DIR")
@@ -275,6 +277,7 @@ impl Cackle {
         let ui_join_handle = ui::start_ui(
             &args,
             &config_path,
+            &unsafe_collection_path,
             &checker,
             problem_store.clone(),
             crate_index.clone(),

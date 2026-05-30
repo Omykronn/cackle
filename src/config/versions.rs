@@ -94,9 +94,9 @@ mod tests {
         "#}
         .to_owned();
         for version in &VERSIONS[2..] {
-            let mut editor = ConfigEditor::from_toml_string(&toml).unwrap();
+            let mut editor = ConfigEditor::from_toml_json_strings(&toml, "[]").unwrap();
             version.apply(&mut editor).unwrap();
-            let edited_toml = editor.to_toml();
+            let edited_toml = editor.config_to_toml();
 
             let mut config = crate::config::parse_raw(&toml).unwrap();
             (version.apply_fn)(&mut config);

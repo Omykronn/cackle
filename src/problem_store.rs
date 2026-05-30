@@ -93,7 +93,7 @@ impl ProblemStore {
         editor: &crate::config_editor::ConfigEditor,
         config: &crate::config::Config,
     ) {
-        let current_toml = editor.to_toml();
+        let current_toml = editor.config_to_toml();
         let mut empty_indexes = Vec::new();
         for (index, problem) in self.deduplicated_into_iter() {
             for edit in crate::config_editor::fixes_for_problem(problem, config) {
@@ -102,7 +102,7 @@ impl ProblemStore {
                 }
                 let mut editor_copy = editor.clone();
                 if edit.apply(&mut editor_copy, &Default::default()).is_ok()
-                    && editor_copy.to_toml() == current_toml
+                    && editor_copy.config_to_toml() == current_toml
                 {
                     empty_indexes.push(index);
                     info!(

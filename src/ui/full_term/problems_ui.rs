@@ -65,6 +65,7 @@ pub(super) struct ProblemsUi {
     usage_index: usize,
     backtrace_index: usize,
     config_path: PathBuf,
+    unsafe_collection_path: PathBuf,
     accept_single_enabled: bool,
     show_package_details: bool,
     checker: Arc<Mutex<Checker>>,
@@ -308,6 +309,7 @@ impl ProblemsUi {
         crate_index: Arc<CrateIndex>,
         checker: Arc<Mutex<Checker>>,
         config_path: PathBuf,
+        unsafe_collection_path: PathBuf
     ) -> Self {
         Self {
             problem_store,
@@ -318,6 +320,7 @@ impl ProblemsUi {
             usage_index: 0,
             backtrace_index: 0,
             config_path,
+            unsafe_collection_path,
             accept_single_enabled: false,
             show_package_details: true,
             checker,
@@ -352,7 +355,7 @@ impl ProblemsUi {
 
         let config = self.checker.lock().unwrap().config.clone();
         let mut pstore = self.problem_store.lock();
-        let mut editor = ConfigEditor::from_file(&self.config_path)?;
+        let mut editor = ConfigEditor::from_file(&self.config_path, &self.unsafe_collection_path)?;
         while let Some((index, edit)) = first_single_edit(&pstore, &config) {
             edit.apply(&mut editor, &Default::default())?;
             pstore.resolve(index);
@@ -362,7 +365,7 @@ impl ProblemsUi {
     }
 
     fn write_config(&self, editor: &ConfigEditor) -> Result<(), anyhow::Error> {
-        crate::fs::write_atomic(&self.config_path, &editor.to_toml())
+        crate::fs::write_atomic(&self.config_path, &editor.config_to_toml())
     }
 
     fn render_problems(&self, f: &mut Frame, area: Rect) {
@@ -573,7 +576,7 @@ impl ProblemsUi {
         let Some(edit) = edits.get(self.edit_index) else {
             return Ok(());
         };
-        let mut editor = ConfigEditor::from_file(&self.config_path)?;
+        let mut editor = ConfigEditor::from_file(&self.config_path, &self.unsafe_collection_path)?;
         edit.apply(&mut editor, &self.edit_opts())?;
         self.write_config(&editor)?;
 
@@ -599,7 +602,7 @@ impl ProblemsUi {
         let Some(edit) = edits.get(self.edit_index) else {
             return false;
         };
-        let Ok(mut editor) = ConfigEditor::from_file(&self.config_path) else {
+        let Ok(mut editor) = ConfigEditor::from_file(&self.config_path, &self.unsafe_collection_path) else {
             return false;
         };
         const PLACEHOLDER_COMMENT: &str = "CACKLE PLACEHOLDER COMMENT";
@@ -609,7 +612,7 @@ impl ProblemsUi {
                 comment: Some(PLACEHOLDER_COMMENT.to_owned()),
             },
         );
-        editor.to_toml().contains(PLACEHOLDER_COMMENT)
+        editor.config_to_toml().contains(PLACEHOLDER_COMMENT)
     }
 
     fn render_package_details(&self, f: &mut Frame, area: Rect) {
@@ -738,12 +741,13 @@ fn config_diff_lines(
     let mut lines = Vec::new();
     lines.push(Line::from(edit.help().to_string()));
     let original = std::fs::read_to_string(config_path).unwrap_or_default();
-    let mut editor = ConfigEditor::from_toml_string(&original)?;
+    // Considers diff only of the config file, so json can be empty list
+    let mut editor = ConfigEditor::from_toml_json_strings(&original, "[]")?;
     if let Err(error) = edit.apply(&mut editor, opts) {
         lines.push(Line::from(""));
         lines.push(Line::from(error.to_string()));
     }
-    let updated = editor.to_toml();
+    let updated = editor.config_to_toml();
     let mut diff = diff::diff_lines(&original, &updated);
     if !diff.is_empty() {
         lines.push(Line::from(""));

@@ -14,8 +14,10 @@ use crate::problem::PossibleExportedApi;
 use crate::problem::Problem;
 use crate::problem::ProblemList;
 use crate::problem::UnusedAllowApi;
+use crate::unsafe_checker::UnsafeBlock;
 use anyhow::Result;
 use anyhow::anyhow;
+use serde_json::from_str;
 use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::fmt::Display;
@@ -29,6 +31,7 @@ use toml_edit::Value;
 #[derive(Clone)]
 pub(crate) struct ConfigEditor {
     document: DocumentMut,
+    unsafe_blocks: Vec<UnsafeBlock>
 }
 
 pub(crate) trait Edit {
@@ -114,6 +117,7 @@ pub(crate) fn fixes_for_problem(problem: &Problem, config: &Config) -> Vec<Box<d
         Problem::UnregisteredUnsafe(failure) => {
             edits.push(Box::new(RegisterUnsafe {
                 perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
+                blocks: failure.blocks.clone()
             }));
         }
         Problem::DisallowedExtern(failure) => edits.push(Box::new(AllowExtern {
@@ -155,27 +159,34 @@ pub(crate) fn fixes_for_problem(problem: &Problem, config: &Config) -> Vec<Box<d
 }
 
 impl ConfigEditor {
-    pub(crate) fn from_file(filename: &Path) -> Result<Self> {
-        let toml = std::fs::read_to_string(filename).unwrap_or_default();
-        Self::from_toml_string(&toml)
+    pub(crate) fn from_file(config_filename: &Path, unsafe_collection_filename: &Path) -> Result<Self> {
+        let toml = std::fs::read_to_string(config_filename).unwrap_or_default();
+        let json = std::fs::read_to_string(unsafe_collection_filename).unwrap_or("[]".to_string());
+        Self::from_toml_json_strings(&toml, &json)
     }
 
     pub(crate) fn initial() -> Self {
-        Self::from_toml_string(r#""#).unwrap()
+        Self::from_toml_json_strings(r#""#, "[]").unwrap()
     }
 
-    pub(crate) fn from_toml_string(toml: &str) -> Result<Self> {
+    pub(crate) fn from_toml_json_strings(toml: &str, json: &str) -> Result<Self> {
         let document = toml.parse()?;
-        Ok(Self { document })
+        let unsafe_blocks: Vec<UnsafeBlock> = from_str(json)?;
+        Ok(Self { document, unsafe_blocks })
     }
 
-    pub(crate) fn write(&self, filename: &Path) -> Result<()> {
-        crate::fs::write_atomic(filename, &self.to_toml())?;
+    pub(crate) fn write(&self, config_filename: &Path, unsafe_collection_filename: &Path) -> Result<()> {
+        crate::fs::write_atomic(config_filename, &self.config_to_toml())?;
+        crate::fs::write_atomic(unsafe_collection_filename, &self.unsafe_blocks_to_json())?;
         Ok(())
     }
 
-    pub(crate) fn to_toml(&self) -> String {
+    pub(crate) fn config_to_toml(&self) -> String {
         self.document.to_string()
+    }
+
+    pub(crate) fn unsafe_blocks_to_json(&self) -> String {
+        serde_json::to_string_pretty(&self.unsafe_blocks).unwrap()
     }
 
     fn pkg_table(&mut self, perm_sel: &PermSel) -> Result<&mut toml_edit::Table> {
@@ -1141,7 +1152,8 @@ impl Edit for AllowExtern {
 }
 
 struct RegisterUnsafe {
-    perm_sel: PermSel
+    perm_sel: PermSel,
+    blocks: Vec<UnsafeBlock>
 }
 
 impl Edit for RegisterUnsafe {
@@ -1239,16 +1251,16 @@ mod tests {
     #[track_caller]
     fn check(initial_config: &str, problem: &Problem, fix_index: usize, expected: &str) {
         let config = crate::config::testing::parse(initial_config).unwrap();
-        let mut editor = ConfigEditor::from_toml_string(initial_config).unwrap();
+        let mut editor = ConfigEditor::from_toml_json_strings(initial_config, "[]").unwrap();
         let edit = &fixes_for_problem(problem, &config)[fix_index];
         edit.apply(&mut editor, &Default::default()).unwrap();
-        let updated_toml = editor.to_toml();
+        let updated_toml = editor.config_to_toml();
         assert_eq!(updated_toml, expected);
 
         // Apply the edit a second time and make sure that the result doesn't change.
-        let mut editor = ConfigEditor::from_toml_string(&updated_toml).unwrap();
+        let mut editor = ConfigEditor::from_toml_json_strings(&updated_toml, "[]").unwrap();
         edit.apply(&mut editor, &Default::default()).unwrap();
-        assert_eq!(editor.to_toml(), expected);
+        assert_eq!(editor.config_to_toml(), expected);
     }
 
     #[test]
@@ -1626,9 +1638,9 @@ mod tests {
     }
 
     fn apply_edit_and_parse(toml: &str, edit: &InlineStdApi) -> Arc<Config> {
-        let mut editor = ConfigEditor::from_toml_string(toml).unwrap();
+        let mut editor = ConfigEditor::from_toml_json_strings(toml, "[]").unwrap();
         edit.apply(&mut editor, &Default::default()).unwrap();
-        crate::config::testing::parse(&editor.to_toml()).unwrap()
+        crate::config::testing::parse(&editor.config_to_toml()).unwrap()
     }
 
     #[test]
