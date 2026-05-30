@@ -116,7 +116,7 @@ pub(crate) fn fixes_for_problem(problem: &Problem, config: &Config) -> Vec<Box<d
         })),
         Problem::UnregisteredUnsafe(failure) => {
             edits.push(Box::new(RegisterUnsafe {
-                perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
+                _perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
                 blocks: failure.blocks.clone()
             }));
         }
@@ -295,6 +295,13 @@ impl ConfigEditor {
         };
         self.table(["sandbox"].into_iter())?
             .insert("kind", toml_edit::value(sandbox_kind));
+        Ok(())
+    }
+
+    fn register_unsafe_blocks(&mut self, unsafe_blocks: Vec<UnsafeBlock>) -> Result<()> {
+        for block in unsafe_blocks {
+            self.unsafe_blocks.push(block);
+        }
         Ok(())
     }
 }
@@ -1152,7 +1159,7 @@ impl Edit for AllowExtern {
 }
 
 struct RegisterUnsafe {
-    perm_sel: PermSel,
+    _perm_sel: PermSel,
     blocks: Vec<UnsafeBlock>
 }
 
@@ -1166,10 +1173,8 @@ impl Edit for RegisterUnsafe {
             .into()
     }
 
-    fn apply(&self, _editor: &mut ConfigEditor, _opts: &EditOpts) -> Result<()> {
-        // TODO : Write in unsafe-blocks.json
-
-        Ok(())
+    fn apply(&self, editor: &mut ConfigEditor, _opts: &EditOpts) -> Result<()> {
+        editor.register_unsafe_blocks(self.blocks.clone())
     }
 }
 

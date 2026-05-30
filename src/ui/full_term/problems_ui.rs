@@ -365,7 +365,7 @@ impl ProblemsUi {
     }
 
     fn write_config(&self, editor: &ConfigEditor) -> Result<(), anyhow::Error> {
-        crate::fs::write_atomic(&self.config_path, &editor.config_to_toml())
+        editor.write(&self.config_path, &self.unsafe_collection_path)
     }
 
     fn render_problems(&self, f: &mut Frame, area: Rect) {
