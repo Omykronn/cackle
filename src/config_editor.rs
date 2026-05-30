@@ -115,10 +115,12 @@ pub(crate) fn fixes_for_problem(problem: &Problem, config: &Config) -> Vec<Box<d
             perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
         })),
         Problem::UnregisteredUnsafe(failure) => {
-            edits.push(Box::new(RegisterUnsafe {
-                _perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
-                blocks: failure.blocks.clone()
-            }));
+            for block in &failure.blocks {
+                edits.push(Box::new(RegisterUnsafe {
+                    _perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
+                    block: block.to_owned()
+                }));
+            }
         }
         Problem::DisallowedExtern(failure) => edits.push(Box::new(AllowExtern {
             perm_sel: PermSel::for_non_build_output(&failure.crate_sel),
@@ -298,10 +300,8 @@ impl ConfigEditor {
         Ok(())
     }
 
-    fn register_unsafe_blocks(&mut self, unsafe_blocks: Vec<UnsafeBlock>) -> Result<()> {
-        for block in unsafe_blocks {
-            self.unsafe_blocks.push(block);
-        }
+    fn register_unsafe_block(&mut self, block: UnsafeBlock) -> Result<()> {
+        self.unsafe_blocks.push(block);
         Ok(())
     }
 }
@@ -1160,12 +1160,12 @@ impl Edit for AllowExtern {
 
 struct RegisterUnsafe {
     _perm_sel: PermSel,
-    blocks: Vec<UnsafeBlock>
+    block: UnsafeBlock
 }
 
 impl Edit for RegisterUnsafe {
     fn title(&self) -> String {
-        "Register this unsafe code".to_string()
+        format!("Register the unsafe code at {}", self.block.location)
     }
 
     fn help(&self) -> Cow<'static, str> {
@@ -1174,7 +1174,7 @@ impl Edit for RegisterUnsafe {
     }
 
     fn apply(&self, editor: &mut ConfigEditor, _opts: &EditOpts) -> Result<()> {
-        editor.register_unsafe_blocks(self.blocks.clone())
+        editor.register_unsafe_block(self.block.clone())
     }
 }
 
